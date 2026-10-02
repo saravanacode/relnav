@@ -53,3 +53,5 @@ and the decision records in [docs/adr](docs/adr).
 - The PyPI `pyrealsense2-macosx` wheel crashes as root, so relnav uses bindings built from
   source (`scripts/build_pyrealsense2.sh`).
 - Color and IMU streams do not work on macOS; relnav uses depth and left infrared.
+- On a USB 2 link (480 Mb/s) the camera has no 848×480 @ 30 fps mode. Add
+  `--config config/usb2.yaml` (640×480 @ 15 fps) to `live` and `record`, and move slowly.

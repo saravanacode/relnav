@@ -35,3 +35,11 @@ def test_typos_are_rejected(tmp_path):
 def test_repository_default_config_loads():
     cfg = load_config(Path("config/default.yaml"))
     assert cfg.slam.pins.labels == ("DOOR", "CHAIR", "LAPTOP")
+
+
+def test_usb2_config_uses_a_mode_usb2_can_stream():
+    """On a USB 2 link the D435i offers 640x480 depth + infrared at up to 30 fps; 15 is safe."""
+    cfg = load_config(Path("config/usb2.yaml"))
+    assert (cfg.camera.width, cfg.camera.height, cfg.camera.fps) == (640, 480, 15)
+    assert cfg.camera.emitter_enabled is False
+    assert cfg.slam.pins.labels == ("DOOR", "CHAIR", "LAPTOP")

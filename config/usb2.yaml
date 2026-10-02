@@ -1,0 +1,14 @@
+# relnav configuration for a camera that connected at USB 2 (480 Mb/s).
+# Check the link: system_profiler SPUSBHostDataType | grep -A10 RealSense | grep "Link Speed"
+# On USB 2 the D435i has no 848x480 @ 30 fps mode, so use 640x480 @ 15 fps.
+# Walk and turn slowly: at 15 fps the camera moves twice as far between frames.
+camera:
+  width: 640
+  height: 480
+  fps: 15
+  emitter_enabled: false # projector dots move with the camera and confuse tracking
+slam:
+  pins:
+    labels: [DOOR, CHAIR, LAPTOP]
+rerun_url: null
+rerun_spawn: false
