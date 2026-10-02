@@ -14,6 +14,7 @@ from tests.support.synthetic import (
     SyntheticRoom,
     blank_frame,
     loop_trajectory,
+    pose_xz_yaw,
 )
 
 pytestmark = pytest.mark.slow
@@ -135,3 +136,14 @@ def test_pin_rejected_for_tracking_still_uses_up_its_label(room):
     pipeline.step(frame)
     again = dataclasses.replace(frame, index=2, timestamp_ns=2 * FRAME_PERIOD_NS)
     assert "pin CHAIR dropped" in pipeline.step(again, [DropPin()]).events
+
+
+def test_frame_that_failed_to_track_gets_no_pin_and_no_pose(room):
+    """A pin needs this frame's own pose; a held pose from an earlier frame would misplace it."""
+    pipeline = SlamPipeline()
+    pipeline.step(room.render(SE3.identity(), index=0, depth_noise=False))
+    behind = room.render(pose_xz_yaw(0.0, 0.0, 180.0), index=1, depth_noise=False)
+    state = pipeline.step(behind, [DropPin()])
+    assert state.status.state is TrackingState.DEGRADED
+    assert state.events == ("pin P1 rejected: tracking failed on this frame",)
+    assert [t for t, _ in pipeline.trajectory()] == [0]

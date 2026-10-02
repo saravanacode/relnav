@@ -68,6 +68,7 @@ class SlamPipeline:
         self._path: list[np.ndarray] = []
         self._map_version = 0
         self._loops = 0
+        self._tracked_now = False  # True only when this frame produced its own pose
 
     @property
     def keyframes(self) -> KeyframeStore:
@@ -95,6 +96,7 @@ class SlamPipeline:
         timings["features_ms"] = _ms_since(start)
 
         tracking_start = time.perf_counter()
+        self._tracked_now = False
         state = self._health.state
         if state is TrackingState.INITIALIZING:
             self._initialize(frame, features, events)
@@ -108,7 +110,7 @@ class SlamPipeline:
             if isinstance(command, DropPin):
                 self._drop_pin(frame, command, events)
 
-        if self._status.state in _TRACKING and self._T_world_cam is not None:
+        if self._tracked_now and self._T_world_cam is not None:
             assert self._reference is not None
             T_kf_cam = self._reference.T_world_cam.inverse() @ self._T_world_cam
             self._trajectory.append((frame.timestamp_ns, self._reference.id, T_kf_cam))
@@ -125,6 +127,7 @@ class SlamPipeline:
         self._insert_keyframe(frame, features, len(features), events)
         self._motion.update(self._T_world_cam)
         self._status = self._health.initialized()
+        self._tracked_now = True
         events.append("initialized: world origin set")
 
     def _track(self, frame: Frame, features: Features, events: list[str]) -> None:
@@ -139,6 +142,7 @@ class SlamPipeline:
             return
         self._T_world_cam = result.T_world_cam
         self._motion.update(result.T_world_cam)
+        self._tracked_now = True
         enough_texture = len(features) >= self.cfg.health.init_min_features
         if enough_texture and self.cfg.keyframes.needs_keyframe(
             self._reference, result.T_world_cam, result.inliers
@@ -168,6 +172,7 @@ class SlamPipeline:
         self._motion.reset()
         self._motion.update(T_world_cam)
         self._status = self._health.relocalized(result)
+        self._tracked_now = True
         events.append(f"relocalized against keyframe {keyframe.id}")
 
     def _insert_keyframe(
@@ -198,6 +203,10 @@ class SlamPipeline:
         ):
             label = self._pins.claim_label(command.label)
             events.append(f"pin {label} rejected: tracking {self._status.state}")
+            return
+        if not self._tracked_now:
+            label = self._pins.claim_label(command.label)
+            events.append(f"pin {label} rejected: tracking failed on this frame")
             return
         u = command.u if command.u is not None else frame.intrinsics.width // 2
         v = command.v if command.v is not None else frame.intrinsics.height // 2
