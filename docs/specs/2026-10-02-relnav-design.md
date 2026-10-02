@@ -189,7 +189,7 @@ For each frame:
 A new keyframe is created when any of these is true:
 - translation from the reference keyframe > 0.15 m
 - rotation from the reference keyframe > 15°
-- inliers < 50% of the reference keyframe's feature count
+- inliers < 50% of the inliers the first frame tracked against the reference had (amended 2026-10-02: the raw feature count made a keyframe on every frame, because only ~25% of features survive matching)
 - inliers < 100
 
 The new keyframe becomes the tracking reference.

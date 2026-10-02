@@ -63,6 +63,7 @@ class SlamPipeline:
         self._motion = MotionModel()
         self._T_world_cam: SE3 | None = None
         self._reference: Keyframe | None = None
+        self._baseline_inliers: int | None = None  # first track against the reference
         self._status = TrackingStatus(TrackingState.INITIALIZING, message="waiting for texture")
         self._trajectory: list[tuple[int, int, SE3]] = []  # (timestamp_ns, keyframe id, T_kf_cam)
         self._path: list[np.ndarray] = []
@@ -143,9 +144,11 @@ class SlamPipeline:
         self._T_world_cam = result.T_world_cam
         self._motion.update(result.T_world_cam)
         self._tracked_now = True
+        if self._baseline_inliers is None:
+            self._baseline_inliers = result.inliers
         enough_texture = len(features) >= self.cfg.health.init_min_features
         if enough_texture and self.cfg.keyframes.needs_keyframe(
-            self._reference, result.T_world_cam, result.inliers
+            self._reference, result.T_world_cam, result.inliers, self._baseline_inliers
         ):
             self._insert_keyframe(frame, features, result.inliers, events)
 
@@ -169,6 +172,7 @@ class SlamPipeline:
         assert T_world_cam is not None
         self._T_world_cam = T_world_cam
         self._reference = keyframe
+        self._baseline_inliers = result.inliers
         self._motion.reset()
         self._motion.update(T_world_cam)
         self._status = self._health.relocalized(result)
@@ -183,6 +187,7 @@ class SlamPipeline:
         keyframe = self._keyframes.add(frame.index, self._T_world_cam, features, cloud)
         loop = self._backend.add_keyframe(keyframe, self._keyframes, inliers, frame.intrinsics)
         self._reference = keyframe
+        self._baseline_inliers = None  # set by the next frame tracked against it
         self._map_version += 1
         if loop is None:
             return

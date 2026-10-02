@@ -147,3 +147,10 @@ def test_frame_that_failed_to_track_gets_no_pin_and_no_pose(room):
     assert state.status.state is TrackingState.DEGRADED
     assert state.events == ("pin P1 rejected: tracking failed on this frame",)
     assert [t for t, _ in pipeline.trajectory()] == [0]
+
+
+def test_keyframes_follow_motion_not_every_frame(loop_run):
+    """A 3.8 m loop with keyframes every ~15 cm / 15 deg needs a few dozen, not one per frame."""
+    _, pipeline, states = loop_run
+    assert len(pipeline.keyframes) <= 45
+    assert len(pipeline.keyframes) <= 0.3 * len(states)

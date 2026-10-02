@@ -30,12 +30,21 @@ def test_ids_are_sequential_and_latest_is_last():
 def test_policy_triggers_on_each_criterion():
     policy = KeyframePolicy()
     reference = store_with([SE3.identity()])[0]
-    assert not policy.needs_keyframe(reference, pose_xz_yaw(0.05, 0.05, 5), inliers=150)
-    assert policy.needs_keyframe(reference, pose_xz_yaw(0.16, 0.0, 0), inliers=150)
-    assert policy.needs_keyframe(reference, pose_xz_yaw(0.0, 0.0, 16), inliers=150)
-    assert policy.needs_keyframe(reference, SE3.identity(), inliers=99)  # fewer than 100
-    big = store_with([SE3.identity()], n_features=400)[0]
-    assert policy.needs_keyframe(big, SE3.identity(), inliers=150)  # below 50% of 400
+    small_move = pose_xz_yaw(0.05, 0.05, 5)
+    assert not policy.needs_keyframe(reference, small_move, inliers=150, baseline_inliers=200)
+    assert policy.needs_keyframe(reference, pose_xz_yaw(0.16, 0.0, 0), 150, 200)
+    assert policy.needs_keyframe(reference, pose_xz_yaw(0.0, 0.0, 16), 150, 200)
+    assert policy.needs_keyframe(reference, SE3.identity(), inliers=99, baseline_inliers=120)
+    # Overlap halved: fewer than 50% of the inliers this keyframe had when first tracked.
+    assert policy.needs_keyframe(reference, SE3.identity(), inliers=140, baseline_inliers=300)
+
+
+def test_policy_ignores_how_many_raw_features_the_keyframe_has():
+    """Only ~25% of a keyframe's features survive matching even without motion, so the
+    raw feature count must not drive keyframe creation."""
+    policy = KeyframePolicy()
+    big = store_with([SE3.identity()], n_features=900)[0]
+    assert not policy.needs_keyframe(big, pose_xz_yaw(0.01, 0.0, 0.6), 200, baseline_inliers=220)
 
 
 def test_viewing_angle():

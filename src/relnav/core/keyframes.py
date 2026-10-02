@@ -20,12 +20,19 @@ class KeyframePolicy:
     min_inlier_ratio: float = 0.5
     min_inliers: int = 100
 
-    def needs_keyframe(self, reference: Keyframe, T_world_cam: SE3, inliers: int) -> bool:
+    def needs_keyframe(
+        self, reference: Keyframe, T_world_cam: SE3, inliers: int, baseline_inliers: int
+    ) -> bool:
+        """``baseline_inliers``: inliers of the first frame tracked against ``reference``.
+
+        Overlap is measured against that baseline, not the keyframe's raw feature count:
+        only ~25% of features survive matching even without motion.
+        """
         motion = reference.T_world_cam.inverse() @ T_world_cam
         return (
             motion.translation_norm() > self.max_translation_m
             or motion.rotation_angle_deg() > self.max_rotation_deg
-            or inliers < self.min_inlier_ratio * len(reference.keypoints)
+            or inliers < self.min_inlier_ratio * baseline_inliers
             or inliers < self.min_inliers
         )
 
