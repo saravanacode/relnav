@@ -5,8 +5,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .hypothesis/
-results/
-recordings/
+/results/
+/recordings/
 *.mcap
 *.rrd
 vendor/pyrealsense2/src/pyrealsense2/*.so
