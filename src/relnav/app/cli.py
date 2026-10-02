@@ -16,6 +16,8 @@ from relnav.app.config import AppConfig, load_config
 from relnav.app.runner import RunSummary
 from relnav.app.session import run_session
 from relnav.app.verify import check_pairs, load_pins, load_truth
+from relnav.ports.errors import FrameSourceError
+from relnav.ports.frame_source import FrameSource
 
 app = typer.Typer(
     help="relnav: relative navigation with an Intel RealSense D435i.",
@@ -42,6 +44,18 @@ def _config(path: Path | None) -> AppConfig:
     return load_config(path)
 
 
+def _open_camera(cfg: AppConfig) -> FrameSource:
+    """Start the camera, turning a start failure into a message and exit code 1."""
+    from relnav.adapters.realsense.source import RealSenseFrameSource
+
+    try:
+        return RealSenseFrameSource(cfg.camera)
+    except FrameSourceError as exc:
+        console.print(f"[red]camera error:[/] {exc}")
+        console.print("Unplug and replug the camera, check it shows 5 Gb/s, then retry.")
+        raise typer.Exit(1) from None
+
+
 def _report(summary: RunSummary) -> None:
     console.print(
         f"[bold]{summary.frames}[/] frames, {summary.timeouts} timeouts, "
@@ -66,10 +80,9 @@ def live(
 ) -> None:
     """Track live from the camera (needs root: scripts/relnav-sudo live)."""
     from relnav.adapters.mcap.recorder import McapRecorder
-    from relnav.adapters.realsense.source import RealSenseFrameSource
 
     cfg = _config(config)
-    source = RealSenseFrameSource(cfg.camera)
+    source = _open_camera(cfg)
     summary = run_session(
         source,
         cfg=cfg,
@@ -90,10 +103,9 @@ def record(
 ) -> None:
     """Record camera frames and pin presses (needs root: scripts/relnav-sudo record x.mcap)."""
     from relnav.adapters.mcap.recorder import McapRecorder
-    from relnav.adapters.realsense.source import RealSenseFrameSource
 
     cfg = _config(config)
-    source = RealSenseFrameSource(cfg.camera)
+    source = _open_camera(cfg)
     summary = run_session(
         source, cfg=cfg, with_slam=False, hud=hud, rerun=False, recorder=McapRecorder(output)
     )

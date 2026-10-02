@@ -85,19 +85,24 @@ class RealSenseFrameSource:
         profile = start_with_retry(
             lambda: self._pipeline.start(config), cfg.start_attempts, cfg.start_retry_delay_s
         )
-        sensor = profile.get_device().first_depth_sensor()
-        if sensor.supports(rs.option.emitter_enabled):
-            sensor.set_option(rs.option.emitter_enabled, 1.0 if cfg.emitter_enabled else 0.0)
-        stream = profile.get_stream(rs.stream.depth).as_video_stream_profile().get_intrinsics()
-        self.intrinsics = Intrinsics(
-            width=stream.width,
-            height=stream.height,
-            fx=stream.fx,
-            fy=stream.fy,
-            cx=stream.ppx,
-            cy=stream.ppy,
-            depth_scale=sensor.get_depth_scale(),
-        )
+        try:
+            sensor = profile.get_device().first_depth_sensor()
+            if sensor.supports(rs.option.emitter_enabled):
+                sensor.set_option(rs.option.emitter_enabled, 1.0 if cfg.emitter_enabled else 0.0)
+            stream = profile.get_stream(rs.stream.depth).as_video_stream_profile().get_intrinsics()
+            self.intrinsics = Intrinsics(
+                width=stream.width,
+                height=stream.height,
+                fx=stream.fx,
+                fy=stream.fy,
+                cx=stream.ppx,
+                cy=stream.ppy,
+                depth_scale=sensor.get_depth_scale(),
+            )
+        except RuntimeError as exc:  # device lost between start and setup
+            with contextlib.suppress(RuntimeError):
+                self._pipeline.stop()
+            raise FrameSourceError(f"camera setup failed: {exc}") from exc
         # No temporal filter: it smears depth while the camera moves.
         self._filters = [rs.threshold_filter(cfg.min_depth_m, cfg.max_depth_m), rs.spatial_filter()]
         self._queue = LatestFrameQueue(cfg.queue_size)

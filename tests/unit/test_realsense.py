@@ -58,3 +58,38 @@ def test_queue_keeps_the_newest_frames():
     assert first is not None and second is not None
     assert [first.index, second.index] == [3, 4]
     assert q.get(0.01) is None
+
+
+def test_setup_failure_after_start_stops_the_camera(monkeypatch):
+    import relnav.adapters.realsense.source as source
+
+    stopped = []
+
+    class Profile:
+        def get_device(self):
+            raise RuntimeError("device disconnected")
+
+    class Pipeline:
+        def start(self, config):
+            return Profile()
+
+        def stop(self):
+            stopped.append(True)
+
+    class Config:
+        def enable_stream(self, *args):
+            pass
+
+    class FakeRs:
+        pipeline, config = Pipeline, Config
+
+        class stream:
+            depth = infrared = None
+
+        class format:
+            z16 = y8 = None
+
+    monkeypatch.setattr(source, "rs", FakeRs)
+    with pytest.raises(FrameSourceError, match="device disconnected"):
+        source.RealSenseFrameSource()
+    assert stopped == [True]
