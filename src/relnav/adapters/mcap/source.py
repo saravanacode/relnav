@@ -5,6 +5,7 @@ Reads the file as a stream, so a recording cut off mid-write replays up to the c
 
 from __future__ import annotations
 
+import struct
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -76,7 +77,7 @@ class McapFrameSource:
             return next(self._records)
         except StopIteration:
             return None
-        except McapError:
+        except (McapError, struct.error):  # a cut inside a record header surfaces as struct.error
             self.truncated = True
             return None
 

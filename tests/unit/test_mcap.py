@@ -121,3 +121,20 @@ def test_files_untouched_without_sudo(tmp_path, monkeypatch):
     monkeypatch.delenv("SUDO_UID", raising=False)
     monkeypatch.setattr(os, "chown", lambda *a: pytest.fail("chown called"))
     fs.give_to_sudo_user(tmp_path)
+
+
+def test_replay_survives_a_cut_at_any_byte(tmp_path):
+    """Review focus 1: wherever the file is cut, replay stops cleanly instead of crashing."""
+    small = Intrinsics(width=8, height=6, fx=5.0, fy=5.0, cx=4.0, cy=3.0)
+    path = tmp_path / "full.mcap"
+    recorder = McapRecorder(path, chunk_size=300)
+    for i in range(4):
+        f = frame(i)
+        recorder.write_frame(Frame(f.index, f.timestamp_ns, f.ir[:6, :8], f.depth_m[:6, :8], small))
+    recorder.close()
+    data = path.read_bytes()
+    cut = tmp_path / "cut.mcap"
+    for end in range(len(data)):
+        cut.write_bytes(data[:end])
+        frames, _ = read_all(McapFrameSource(cut))
+        assert [f.index for f in frames] == list(range(len(frames))), end
