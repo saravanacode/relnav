@@ -138,3 +138,29 @@ def test_replay_survives_a_cut_at_any_byte(tmp_path):
         cut.write_bytes(data[:end])
         frames, _ = read_all(McapFrameSource(cut))
         assert [f.index for f in frames] == list(range(len(frames))), end
+
+
+def test_new_parent_folders_go_back_to_the_user(tmp_path, monkeypatch):
+    """Under sudo, every folder relnav creates (not just the leaf) belongs to the user."""
+    calls = []
+    monkeypatch.setenv("SUDO_UID", "501")
+    monkeypatch.setenv("SUDO_GID", "20")
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    monkeypatch.setattr(os, "chown", lambda p, uid, gid: calls.append(str(p)))
+    target = tmp_path / "results" / "home"
+    fs.make_dirs_for_user(target)
+    assert target.is_dir()
+    assert calls == [str(tmp_path / "results"), str(target)]
+    calls.clear()
+    fs.make_dirs_for_user(target)  # already there: nothing to hand back
+    assert calls == []
+
+
+def test_recorder_hands_new_folders_to_the_user(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(fs, "give_to_sudo_user", lambda p: calls.append(p))
+    import relnav.adapters.mcap.recorder as recorder_module
+
+    monkeypatch.setattr(recorder_module, "give_to_sudo_user", lambda p: calls.append(p))
+    McapRecorder(tmp_path / "recordings" / "home.mcap").close()
+    assert tmp_path / "recordings" in calls

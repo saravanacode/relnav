@@ -7,7 +7,7 @@ from pathlib import Path
 from mcap.writer import CompressionType, Writer
 
 from relnav import __version__
-from relnav.adapters.fs import give_to_sudo_user
+from relnav.adapters.fs import give_to_sudo_user, make_dirs_for_user
 from relnav.adapters.mcap.codec import (
     ENCODING,
     SCHEMA_DOC,
@@ -26,7 +26,7 @@ from relnav.domain.types import Frame
 
 class McapRecorder:
     def __init__(self, path: Path, chunk_size: int = 4 << 20) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
+        make_dirs_for_user(path.parent)
         self._path = path
         self._file = path.open("wb")
         self._writer = Writer(self._file, chunk_size=chunk_size, compression=CompressionType.ZSTD)

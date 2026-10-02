@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-from relnav.adapters.fs import give_to_sudo_user
+from relnav.adapters.fs import give_to_sudo_user, make_dirs_for_user
 from relnav.domain.se3 import SE3
 from relnav.domain.types import WorldState
 
@@ -58,8 +58,7 @@ def write_results(
     timing: dict,
     summary: dict,
 ) -> list[Path]:
-    out_dir.mkdir(parents=True, exist_ok=True)
-    give_to_sudo_user(out_dir)
+    make_dirs_for_user(out_dir)
     paths = {
         "trajectory": out_dir / "trajectory.tum",
         "pins": out_dir / "pins.json",
