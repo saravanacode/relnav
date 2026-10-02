@@ -45,7 +45,7 @@ Every row must say PASS (error < 3 cm).
 
 ```bash
 uv run relnav replay recordings/home.mcap --no-hud --no-rerun --name speed
-python3 -c "import json; print(json.load(open('results/speed/timing.json'))['fps'])"
+uv run python -c "import json; print(json.load(open('results/speed/timing.json'))['fps'])"
 ```
 
 The printed fps must be ≥ 25.
