@@ -21,7 +21,7 @@ class FakeSource:
         if not self.items:
             return None
         item = self.items.pop(0)
-        if isinstance(item, Exception):
+        if isinstance(item, BaseException):
             raise item
         return item
 
@@ -139,3 +139,34 @@ def test_record_mode_marks_pins_for_replay():
     sink = ListSink()
     run(FakeSource([frame(0)]), [sink], command_sources=[ScriptedCommands([[DropPin()]])])
     assert sink.states[0].events == ("pin marked (applied during replay)",)
+
+
+class FailingPipeline:
+    def step(self, frame, commands):
+        raise RuntimeError("boom")
+
+
+class FailingCloseRecorder(MemoryRecorder):
+    def close(self):
+        raise OSError("disk full")
+
+
+def test_ctrl_c_ends_the_run_normally():
+    source, sink = FakeSource([frame(0), KeyboardInterrupt()]), ListSink()
+    summary = run(source, [sink])
+    assert (summary.frames, summary.stop_reason) == (1, "interrupted")
+    assert sink.closed and source.closed
+
+
+def test_unexpected_error_ends_the_run_with_its_reason():
+    source, sink = FakeSource([frame(0)]), ListSink()
+    summary = run(source, [sink], pipeline=FailingPipeline())
+    assert summary.stop_reason == "error: RuntimeError: boom"
+    assert summary.frames == 0 and sink.closed and source.closed
+
+
+def test_every_resource_closes_even_if_one_close_fails():
+    source, sink = FakeSource([frame(0)]), ListSink()
+    summary = run(source, [sink], recorder=FailingCloseRecorder())
+    assert sink.closed and source.closed
+    assert summary.stop_reason == "end of stream; close failed: OSError: disk full"

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -75,10 +75,23 @@ def run(
             for sink in sinks:
                 sink.publish(state)
             frames += 1
+    except KeyboardInterrupt:
+        reason = "interrupted"
+    except Exception as exc:  # report it and still close everything and write results
+        reason = f"error: {type(exc).__name__}: {exc}"
     finally:
-        if recorder is not None:
-            recorder.close()
-        for sink in sinks:
-            sink.close()
-        source.close()
+        closers = [*([recorder.close] if recorder is not None else []), *(s.close for s in sinks)]
+        failures = [_close(fn) for fn in [*closers, source.close]]
+        failures = [f for f in failures if f]
+        if failures:
+            reason += "; close failed: " + ", ".join(failures)
     return RunSummary(frames, timeouts, reason)
+
+
+def _close(close: Callable[[], None]) -> str:
+    """Close one resource; return its error text so one failure cannot skip the rest."""
+    try:
+        close()
+    except Exception as exc:
+        return f"{type(exc).__name__}: {exc}"
+    return ""
