@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Run relnav as root (librealsense needs raw USB access on macOS) without leaving
+# root-owned bytecode behind. Example: scripts/relnav-sudo live
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec sudo env PYTHONDONTWRITEBYTECODE=1 "$(command -v uv)" run --no-sync relnav "$@"

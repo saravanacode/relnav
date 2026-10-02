@@ -1,0 +1,87 @@
+[project]
+name = "relnav"
+version = "0.1.0"
+description = "Relative navigation: visual SLAM with an Intel RealSense D435i"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mcap>=1.5.0",
+    "numpy>=2.5.3",
+    "open3d>=0.20.0",
+    "opencv-python>=5.0.0.93",
+    "pydantic>=2.13.5",
+    "pyrealsense2-local",
+    "pyyaml>=6.0.3",
+    "rerun-sdk>=0.38.1",
+    "structlog>=26.1.0",
+    "typer>=0.27.2",
+    "zstandard>=0.25.0",
+]
+
+[project.scripts]
+relnav = "relnav.app.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.12.16,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.workspace]
+members = [
+    "vendor/pyrealsense2",
+]
+
+[tool.uv.sources]
+pyrealsense2-local = { workspace = true, editable = true }
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.168.3",
+    "import-linter>=2.15",
+    "pre-commit>=4.6.2",
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["vendor", ".build"]
+# Also skip excluded paths when pre-commit passes file names explicitly.
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+# Allow unicode such as the degree sign in docs and messages.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
+reportMissingModuleSource = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+markers = [
+  "slow: end-to-end tests on the synthetic room (seconds each)",
+  "hardware: needs the RealSense camera and root (RELNAV_HARDWARE=1)",
+]
+
+[tool.importlinter]
+root_package = "relnav"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layers point inward (app -> adapters -> ports -> core -> domain)"
+type = "layers"
+layers = ["relnav.app", "relnav.adapters", "relnav.ports", "relnav.core", "relnav.domain"]
+
+[[tool.importlinter.contracts]]
+name = "REQ-ARCH-01: core and domain stay free of hardware, UI, file-format and CLI code"
+type = "forbidden"
+source_modules = ["relnav.core", "relnav.domain"]
+forbidden_modules = ["pyrealsense2", "rerun", "mcap", "typer"]

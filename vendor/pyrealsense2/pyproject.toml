@@ -1,0 +1,12 @@
+[project]
+name = "pyrealsense2-local"
+version = "2.58.4"
+description = "pyrealsense2 built from librealsense v2.58.4 source for this Mac (see README in project root)."
+requires-python = ">=3.12,<3.13"
+
+[build-system]
+requires = ["uv_build>=0.8,<1"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "pyrealsense2"
