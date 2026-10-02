@@ -98,7 +98,7 @@ def test_pin_on_the_wall(room):
 def test_pin_rejected_before_initialization():
     """Review focus 2: a pin while INITIALIZING is rejected, not a crash."""
     state = SlamPipeline().step(blank_frame(0), [DropPin()])
-    assert state.events == ("pin rejected: tracking INITIALIZING",)
+    assert state.events == ("pin P1 rejected: tracking INITIALIZING",)
     assert state.pins == ()
 
 
@@ -125,3 +125,13 @@ def test_same_input_gives_same_output(room):
     assert len(runs[0]) == len(runs[1])
     for (ta, Ta), (tb, Tb) in zip(runs[0], runs[1], strict=True):
         assert ta == tb and np.array_equal(Ta.matrix, Tb.matrix)
+
+
+def test_pin_rejected_for_tracking_still_uses_up_its_label(room):
+    pipeline = SlamPipeline(SlamConfig(pins=PinConfig(labels=("DOOR", "CHAIR"))))
+    early = pipeline.step(blank_frame(0), [DropPin()])
+    assert early.events == ("pin DOOR rejected: tracking INITIALIZING",)
+    frame = room.render(SE3.identity(), index=1, depth_noise=False)
+    pipeline.step(frame)
+    again = dataclasses.replace(frame, index=2, timestamp_ns=2 * FRAME_PERIOD_NS)
+    assert "pin CHAIR dropped" in pipeline.step(again, [DropPin()]).events

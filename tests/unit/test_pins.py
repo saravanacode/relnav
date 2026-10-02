@@ -78,3 +78,13 @@ def test_readouts_give_distance_and_bearing():
     (pair,) = registry.pairs(store)
     assert (pair.label_a, pair.label_b) == ("A", "B")
     assert pair.distance_m == pytest.approx(2.0)
+
+
+def test_a_rejected_pin_still_uses_up_its_label():
+    """A rejected DOOR press must not turn the next pin (the CHAIR) into DOOR."""
+    store = store_with_origin()
+    registry = PinRegistry(PinConfig(labels=("DOOR", "CHAIR")))
+    rejected = registry.drop(wall_frame(depth=0.0), 212, 120, SE3.identity(), store[0])
+    assert rejected.pin is None and rejected.label == "DOOR"
+    accepted = registry.drop(wall_frame(), 212, 120, SE3.identity(), store[0]).pin
+    assert accepted is not None and accepted.label == "CHAIR"

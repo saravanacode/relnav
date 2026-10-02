@@ -196,13 +196,14 @@ class SlamPipeline:
             or self._T_world_cam is None
             or self._reference is None
         ):
-            events.append(f"pin rejected: tracking {self._status.state}")
+            label = self._pins.claim_label(command.label)
+            events.append(f"pin {label} rejected: tracking {self._status.state}")
             return
         u = command.u if command.u is not None else frame.intrinsics.width // 2
         v = command.v if command.v is not None else frame.intrinsics.height // 2
         result = self._pins.drop(frame, u, v, self._T_world_cam, self._reference, command.label)
         if result.pin is None:
-            events.append(f"pin rejected: {result.reason}")
+            events.append(f"pin {result.label} rejected: {result.reason}")
         else:
             events.append(f"pin {result.pin.label} dropped")
 

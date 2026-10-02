@@ -25,16 +25,27 @@ class PinConfig:
 class PinDropResult:
     pin: Pin | None
     reason: str = ""
+    label: str = ""
 
 
 class PinRegistry:
     def __init__(self, cfg: PinConfig) -> None:
         self.cfg = cfg
         self._pins: list[Pin] = []
+        self._presses = 0
 
     @property
     def pins(self) -> tuple[Pin, ...]:
         return tuple(self._pins)
+
+    def claim_label(self, label: str | None = None) -> str:
+        """Label for the next pin press. Every press uses one up, accepted or not, so a
+        rejected DOOR press cannot shift CHAIR onto DOOR's label."""
+        n = self._presses
+        self._presses += 1
+        if label is not None:
+            return label
+        return self.cfg.labels[n] if n < len(self.cfg.labels) else f"P{n + 1}"
 
     def drop(
         self,
@@ -48,18 +59,19 @@ class PinRegistry:
         z = depth_patch_median(
             frame.depth_m, u, v, self.cfg.patch_half, self.cfg.min_valid_fraction
         )
+        label = self.claim_label(label)
         if z is None:
-            return PinDropResult(None, "no depth at crosshair")
+            return PinDropResult(None, "no depth at crosshair", label)
         point_cam = deproject([[u, v]], [z], frame.intrinsics)[0]
         point_in_keyframe = (reference.T_world_cam.inverse() @ T_world_cam).apply(point_cam)
-        n = len(self._pins)
-        if label is None:
-            label = self.cfg.labels[n] if n < len(self.cfg.labels) else f"P{n + 1}"
         pin = Pin(
-            id=n, label=label, anchor_keyframe_id=reference.id, point_in_keyframe=point_in_keyframe
+            id=len(self._pins),
+            label=label,
+            anchor_keyframe_id=reference.id,
+            point_in_keyframe=point_in_keyframe,
         )
         self._pins.append(pin)
-        return PinDropResult(pin)
+        return PinDropResult(pin, label=label)
 
     def world_position(self, pin: Pin, keyframes: KeyframeStore) -> NDArray[np.float64]:
         return keyframes[pin.anchor_keyframe_id].T_world_cam.apply(pin.point_in_keyframe)
