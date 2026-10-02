@@ -1,0 +1,11 @@
+# relnav configuration. Every key is optional; defaults come from the code.
+camera:
+  width: 848
+  height: 480
+  fps: 30
+  emitter_enabled: false # projector dots move with the camera and confuse tracking
+slam:
+  pins:
+    labels: [DOOR, CHAIR, LAPTOP] # names for the 1st, 2nd and 3rd pin
+rerun_url: null # null = local viewer started with `uv run relnav viewer`
+rerun_spawn: false
